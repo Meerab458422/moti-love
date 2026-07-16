@@ -1,0 +1,569 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyLoveApp());
+}
+
+class MyLoveApp extends StatelessWidget {
+  const MyLoveApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFFFBF3E9), // Cream background
+        fontFamily: 'Georgia',
+      ),
+      home: const MainLoveScreen(),
+    );
+  }
+}
+
+class MainLoveScreen extends StatefulWidget {
+  const MainLoveScreen({super.key});
+
+  @override
+  State<MainLoveScreen> createState() => _MainLoveScreenState();
+}
+
+class _MainLoveScreenState extends State<MainLoveScreen> {
+  int currentStep = 0; // 0: Envelope, 1: Letter, 2: Proposal, 3: Success
+
+  // 🔴 AGAR AAPKI PHOTO KA NAAM KUCH AUR HAI TO YAHAN BADAL LEIN 🔴
+  final String localPhotoPath = "assets/my_love.jpg";
+
+  // Typewriter effect variables
+  final String fullLetterText = 
+      "My dearest love,\n\n"
+      "From the moment you walked into my life, everything felt a little more like poetry.\n\n"
+      "Your smile has a way of rewriting my worst days into my best ones.\n\n"
+      "I don't say this lightly, and I don't say it because it's easy — I say it because it's true.\n\n"
+      "I love you so much. Completely, quietly, and without asking for anything in return.\n\n"
+      "So here I am, laying my heart open on this little page...";
+  
+  String displayedText = "";
+  Timer? typingTimer;
+  int characterIndex = 0;
+  bool isTypingDone = false;
+
+  // No button dodge properties
+  double noBtnTop = 150.0;
+  double noBtnLeft = 180.0;
+  int noAttempts = 0;
+  String hintText = "Tap the buttons below...";
+
+  final List<String> funnyNoTexts = [
+    "wait, come back...",
+    "pretty please? 🥺",
+    "think about it...",
+    "are you absolutely sure? 💔",
+    "just click Yes already! 😂"
+  ];
+
+  // Confetti particles
+  final List<HeartParticle> particles = [];
+  late double screenWidth;
+  late double screenHeight;
+
+  // Function to start real typewriter typing effect
+  void startTypewriterEffect() {
+    setState(() {
+      displayedText = "";
+      characterIndex = 0;
+      isTypingDone = false;
+    });
+
+    typingTimer?.cancel();
+    
+    typingTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      if (characterIndex < fullLetterText.length) {
+        if (mounted) {
+          setState(() {
+            displayedText += fullLetterText[characterIndex];
+            characterIndex++;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            isTypingDone = true;
+          });
+        }
+        timer.cancel();
+      }
+    });
+  }
+
+  void spawnParticles() {
+    final random = Random();
+    particles.clear(); 
+    for (int i = 0; i < 40; i++) {
+      particles.add(HeartParticle(
+        x: random.nextDouble() * screenWidth,
+        y: random.nextDouble() * -screenHeight,
+        speed: random.nextDouble() * 3 + 2,
+        size: random.nextDouble() * 15 + 10,
+        opacity: random.nextDouble() * 0.5 + 0.5,
+      ));
+    }
+  }
+
+  void updateParticles() {
+    if (!mounted) return; 
+    if (currentStep == 3) {
+      setState(() {
+        for (var p in particles) {
+          p.y += p.speed;
+          if (p.y > screenHeight) {
+            p.y = -10;
+            p.x = Random().nextDouble() * screenWidth;
+          }
+        }
+      });
+      Future.delayed(const Duration(milliseconds: 16), updateParticles);
+    }
+  }
+
+  void dodgeNoButton() {
+    final random = Random();
+    setState(() {
+      noBtnTop = random.nextDouble() * (350 - 80) + 10;
+      noBtnLeft = random.nextDouble() * (350 - 100) + 10;
+      noAttempts++;
+      hintText = funnyNoTexts[min(noAttempts, funnyNoTexts.length - 1)];
+    });
+  }
+
+  @override
+  void dispose() {
+    typingTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    screenWidth = MediaQuery.of(context).size.width;
+    screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Falling hearts on success
+          if (currentStep == 3)
+            ...particles.map((p) => Positioned(
+                  left: p.x,
+                  top: p.y,
+                  child: Opacity(
+                    opacity: p.opacity,
+                    child: Icon(
+                      Icons.favorite,
+                      color: const Color(0xFFE28FA0),
+                      size: p.size,
+                    ),
+                  ),
+                )),
+
+          Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 600),
+                  child: buildCurrentScreen(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildCurrentScreen() {
+    switch (currentStep) {
+      case 0:
+        return buildEnvelopeScreen();
+      case 1:
+        return buildLetterScreen();
+      case 2:
+        return buildProposalScreen();
+      case 3:
+        return buildSuccessScreen();
+      default:
+        return buildEnvelopeScreen();
+    }
+  }
+
+  // 1. ENVELOPE SCREEN (LOCAL PHOTO ADDED HERE)
+  Widget buildEnvelopeScreen() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          currentStep = 1;
+        });
+        startTypewriterEffect();
+      },
+      child: Container(
+        key: const ValueKey(0),
+        width: 350,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBF6),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            )
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 140,
+              height: 90,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1C7D0),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Container(
+                  width: 50, // Seal size thodi badi rakhi hai
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37), // Gold border ring
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2.5),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(100), // Makes photo perfectly round
+                    child: Image.asset(
+                      localPhotoPath,
+                      fit: BoxFit.cover, // Auto fits image
+                      errorBuilder: (context, error, stackTrace) {
+                        // Agar photo register na hui ho, toh crash hone ke bajaye cute heart dikhayega
+                        return const Center(
+                          child: Icon(
+                            Icons.favorite,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "for my love",
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                fontSize: 16,
+                color: Color(0xFF7A2E3D),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "I love you",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF7A2E3D),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "There's a letter waiting inside for you.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "tap the envelope to open it",
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                fontSize: 13,
+                color: Color(0xFFE28FA0),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 2. LETTER SCREEN
+  Widget buildLetterScreen() {
+    return Container(
+      key: const ValueKey(1),
+      width: 400,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBF6),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          )
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Center(
+            child: Text(
+              "a letter to my love",
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                fontSize: 16,
+                color: Color(0xFFE28FA0),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            displayedText,
+            style: const TextStyle(
+              fontSize: 15,
+              height: 1.5,
+              color: Color(0xFF7A2E3D),
+            ),
+          ),
+          if (!isTypingDone)
+            const Padding(
+              padding: EdgeInsets.only(top: 4.0),
+              child: SizedBox(
+                width: 2,
+                height: 18,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Color(0xFF7A2E3D)),
+                ),
+              ),
+            ),
+          const SizedBox(height: 24),
+          if (isTypingDone)
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    currentStep = 2;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7A2E3D),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                ),
+                child: const Text("Read More 💖"),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // 3. PROPOSAL SCREEN
+  Widget buildProposalScreen() {
+    return Container(
+      key: const ValueKey(2),
+      width: 350,
+      height: 350,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBF6),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          )
+        ],
+      ),
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 10),
+              const Text(
+                "will you accept my love?",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF7A2E3D),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Choose wisely — your heart already knows.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                hintText,
+                style: const TextStyle(
+                  color: Color(0xFFE28FA0),
+                  fontStyle: FontStyle.italic,
+                  fontSize: 14,
+                ),
+              ),
+              if (noAttempts > 0)
+                Text(
+                  "$noAttempts attempts to click No",
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                ),
+              const SizedBox(height: 80),
+            ],
+          ),
+          Positioned(
+            bottom: 20,
+            left: 40,
+            child: ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  currentStep = 3;
+                  spawnParticles();
+                  updateParticles();
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7A2E3D),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Text("Yes", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+          Positioned(
+            top: noBtnTop,
+            left: noBtnLeft,
+            child: MouseRegion(
+              onEnter: (_) => dodgeNoButton(),
+              child: GestureDetector(
+                onTap: dodgeNoButton,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFF7A2E3D), width: 1.5),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    "No",
+                    style: TextStyle(
+                      color: Color(0xFF7A2E3D),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4. SUCCESS SCREEN
+  Widget buildSuccessScreen() {
+    return Container(
+      key: const ValueKey(3),
+      width: 350,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBF6),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          )
+        ],
+      ),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.favorite, color: Color(0xFF7A2E3D), size: 24),
+              SizedBox(width: 8),
+              Icon(Icons.favorite, color: Color(0xFF7A2E3D), size: 24),
+              SizedBox(width: 8),
+              Icon(Icons.favorite, color: Color(0xFF7A2E3D), size: 24),
+            ],
+          ),
+          SizedBox(height: 24),
+          Text(
+            "I knew it, my love.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF7A2E3D),
+            ),
+          ),
+          SizedBox(height: 16),
+          Text(
+            "You've just made me the happiest person alive.\n\nThank you for choosing my heart.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.4,
+              color: Color(0xFF7A2E3D),
+            ),
+          ),
+          SizedBox(height: 24),
+          Text(
+            "forever yours",
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              fontSize: 16,
+              color: Color(0xFFE28FA0),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class HeartParticle {
+  double x;
+  double y;
+  final double speed;
+  final double size;
+  final double opacity;
+
+  HeartParticle({
+    required this.x,
+    required this.y,
+    required this.speed,
+    required this.size,
+    required this.opacity,
+  });
+}
